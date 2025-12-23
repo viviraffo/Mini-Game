@@ -1,148 +1,147 @@
-﻿using System;
+using System;
+using System.Threading;
 
-Random random = new Random();
-Console.CursorVisible = false;
-int height = Console.WindowHeight - 1;
-int width = Console.WindowWidth - 5;
-bool shouldExit = false;
+namespace MiniGame;
 
-// Console position of the player
-int playerX = 0;
-int playerY = 0;
-
-// Console position of the food
-int foodX = 0;
-int foodY = 0;
-
-// Available player and food strings
-string[] states = {"('-')", "(^-^)", "(X_X)"};
-string[] foods = {"@@@@@", "$$$$$", "#####"};
-
-// Current player string displayed in the Console
-string player = states[0];
-
-// Index of the current food
-int food = 0;
-
-InitializeGame();
-while (!shouldExit) 
+class Program
 {
-    if (TerminalResized())
+    private const int FreezeDurationMs = 1000;
+    private static readonly string[] States = { "('-')", "(^-^)", "(X_X)" };
+    private static readonly string[] Foods = { "@@@@@", "$$$$$", "#####" };
+
+    private static Random random = new Random();
+    private static string player = States[0];
+    private static int foodIndex = 0;
+    private static bool shouldExit = false;
+
+    private static int playerX = 0;
+    private static int playerY = 0;
+    private static int foodX = 0;
+    private static int foodY = 0;
+    private static int width;
+    private static int height;
+
+    static void Main(string[] args)
+    {
+        InitializeConsole();
+        InitializeGame();
+
+        while (!shouldExit)
+        {
+            if (TerminalResized())
+            {
+                ExitGame();
+                break;
+            }
+
+            CheckCollisions();
+            ProcessPlayerState();
+            Move();
+        }
+    }
+
+    private static void InitializeConsole()
+    {
+        Console.CursorVisible = false;
+        height = Console.WindowHeight - 1;
+        width = Console.WindowWidth - 5;
+    }
+
+    private static void InitializeGame()
+    {
+        Console.Clear();
+        ShowFood();
+        Console.SetCursorPosition(0, 0);
+        Console.Write(player);
+    }
+
+    private static bool TerminalResized()
+    {
+        return height != Console.WindowHeight - 1 || width != Console.WindowWidth - 5;
+    }
+
+    private static void ExitGame()
     {
         shouldExit = true;
         Console.Clear();
         Console.WriteLine("Console was resized. Program exiting.");
-        break;
     }
-    PositionFoodAndPlayer(foodX, foodY, playerX, playerY);
-    IsPlayerX_X(player);
-    Move();
-}
 
-void IsPlayerX_X(string player)
-{
-    if (player.Equals(states[2]))
+    private static void CheckCollisions()
     {
-        FreezePlayer();
-        Move();
+        if (foodX == playerX && foodY == playerY)
+        {
+            ChangePlayer();
+            ShowFood();
+        }
     }
-}
-void PositionFoodAndPlayer(int foodX, int foodY, int playerX, int playerY)
-{
-    if (foodX == playerX && foodY == playerY)
+
+    private static void ProcessPlayerState()
     {
-        ChangePlayer();
-        ShowFood();
+        if (player.Equals(States[2]))
+        {
+            FreezePlayer();
+        }
     }
-}
 
-// Returns true if the Terminal was resized 
-bool TerminalResized() 
-{
-    return height != Console.WindowHeight - 1 || width != Console.WindowWidth - 5;
-}
-
-// Displays random food at a random location
-void ShowFood() 
-{
-    // Update food to a random index
-    food = random.Next(0, foods.Length);
-
-    // Update food position to a random location
-    foodX = random.Next(0, width - player.Length);
-    foodY = random.Next(0, height - 1);
-
-    // Display the food at the location
-    Console.SetCursorPosition(foodX, foodY);
-    Console.Write(foods[food]);
-}
-
-// Changes the player to match the food consumed
-void ChangePlayer() 
-{
-    player = states[food];
-    Console.SetCursorPosition(playerX, playerY);
-    Console.Write(player);
-}
-
-// Temporarily stops the player from moving
-void FreezePlayer() 
-{
-    System.Threading.Thread.Sleep(1000);
-    player = states[0];
-}
-
-// Reads directional input from the Console and moves the player
-void Move(int geschwindigkeit = 1) 
-{
-    int lastX = playerX;
-    int lastY = playerY;
-
-    if (player.Equals(states[1]))
+    private static void ShowFood()
     {
-        geschwindigkeit = 3;
+        foodIndex = random.Next(0, Foods.Length);
+        foodX = random.Next(0, width - player.Length);
+        foodY = random.Next(0, height - 1);
+
+        Console.SetCursorPosition(foodX, foodY);
+        Console.Write(Foods[foodIndex]);
     }
-    
-    switch (Console.ReadKey(true).Key)
+
+    private static void ChangePlayer()
     {
-        case ConsoleKey.UpArrow:
-            playerY -= geschwindigkeit;
-            break;
-        case ConsoleKey.DownArrow:
-            playerY += geschwindigkeit;
-            break;
-        case ConsoleKey.LeftArrow:
-            playerX -= geschwindigkeit;
-            break;
-        case ConsoleKey.RightArrow:
-            playerX += geschwindigkeit;
-            break;
-        default:
-            shouldExit = true;
-            break;
+        player = States[foodIndex];
+        Console.SetCursorPosition(playerX, playerY);
+        Console.Write(player);
     }
 
-    // Clear the characters at the previous position
-    Console.SetCursorPosition(lastX, lastY);
-    for (int i = 0; i < player.Length; i++) 
+    private static void FreezePlayer()
     {
-        Console.Write(" ");
+        Thread.Sleep(FreezeDurationMs);
+        player = States[0];
     }
 
-    // Keep player position within the bounds of the Terminal window
-    playerX = (playerX < 0) ? 0 : (playerX >= width ? width : playerX);
-    playerY = (playerY < 0) ? 0 : (playerY >= height ? height : playerY);
+    private static void Move()
+    {
+        int lastX = playerX;
+        int lastY = playerY;
+        int speed = player.Equals(States[1]) ? 3 : 1;
 
-    // Draw the player at the new location
-    Console.SetCursorPosition(playerX, playerY);
-    Console.Write(player);
-}
+        switch (Console.ReadKey(true).Key)
+        {
+            case ConsoleKey.UpArrow:
+                playerY -= speed;
+                break;
+            case ConsoleKey.DownArrow:
+                playerY += speed;
+                break;
+            case ConsoleKey.LeftArrow:
+                playerX -= speed;
+                break;
+            case ConsoleKey.RightArrow:
+                playerX += speed;
+                break;
+            default:
+                shouldExit = true;
+                return;
+        }
 
-// Clears the console, displays the food and player
-void InitializeGame() 
-{
-    Console.Clear();
-    ShowFood();
-    Console.SetCursorPosition(0, 0);
-    Console.Write(player);
+        Console.SetCursorPosition(lastX, lastY);
+        for (int i = 0; i < player.Length; i++)
+        {
+            Console.Write(" ");
+        }
+
+        playerX = Math.Clamp(playerX, 0, width);
+        playerY = Math.Clamp(playerY, 0, height);
+
+        Console.SetCursorPosition(playerX, playerY);
+        Console.Write(player);
+    }
 }
